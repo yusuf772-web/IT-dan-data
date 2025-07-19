@@ -491,7 +491,6 @@
             openModal(content);
         }
         
-        // ### FIX: Refactored toast logic for reliability ###
         function hideToast() {
             if (state.toastTimeout) {
                 clearTimeout(state.toastTimeout);
@@ -504,7 +503,6 @@
             clearTimeout(state.toastTimeout);
             DOMElements.toastMessage.textContent = message;
             DOMElements.toast.classList.remove('translate-y-20', 'opacity-0');
-            DOMElements.toast.classList.add('translate-y-0', 'opacity-100');
             state.toastTimeout = setTimeout(hideToast, 4000);
         }
         
@@ -793,7 +791,11 @@
 
         // --- App Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
-            document.body.addEventListener('click', handleAppClick);
+            // ### FIX: Changed to a more specific event listener for the main app ###
+            DOMElements.appContainer.addEventListener('click', handleAppClick);
+            DOMElements.modalTemplate.addEventListener('click', handleAppClick);
+            // ### FIX: Added a specific listener for the toast close button ###
+            DOMElements.toast.querySelector('[data-action="close-toast"]').addEventListener('click', hideToast);
             
             DOMElements.wifiSearchInput.addEventListener('input', (e) => {
                 state.wifiSearchQuery = e.target.value;
