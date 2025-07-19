@@ -111,14 +111,20 @@
             <div class="bg-slate-800 p-4 rounded-2xl shadow-lg">
                 <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
                     <h2 class="text-2xl font-bold text-white">Database WiFi</h2>
-                    <button data-action="open-add-wifi-modal" class="w-full sm:w-auto bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
-                        <span>Tambah WiFi</span>
-                    </button>
+                    <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        <button data-action="open-manage-sources-modal" class="w-full sm:w-auto bg-teal-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors shadow-md flex items-center justify-center gap-2">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                           <span>Kelola Sumber</span>
+                        </button>
+                        <button data-action="open-add-wifi-modal" class="w-full sm:w-auto bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                            <span>Tambah WiFi</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="flex flex-col sm:flex-row items-center gap-4 mb-4">
                     <div class="relative w-full sm:w-1/2 lg:w-1/3">
-                        <input type="text" id="wifi-search" placeholder="Cari WiFi..." class="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="text" id="wifi-search" placeholder="Cari di semua kolom..." class="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <svg class="w-5 h-5 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                     </div>
                     <button data-action="reset-wifi-filters" class="w-full sm:w-auto bg-slate-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-slate-500 transition-colors">Reset Pencarian</button>
@@ -171,15 +177,16 @@
             selectedDate: new Date(),
             events: [],
             wifiList: [],
+            internetSources: [],
             currentFilter: 'all',
             wifiSearchQuery: '',
-            // ### REMOVED: wifiFilters state is no longer needed ###
             wifiSort: {
                 key: 'wifiName', 
                 direction: 'asc'
             },
             unsubscribeEvents: null,
             unsubscribeWifi: null,
+            unsubscribeSources: null,
             toastTimeout: null,
         };
 
@@ -306,9 +313,6 @@
             return eventEl;
         }
 
-        /**
-         * ### MODIFIED: Renders the WiFi list table with search and sorting, dropdowns removed. ###
-         */
         function renderWifiList() {
             const container = DOMElements.wifiListContainer;
             container.innerHTML = '';
@@ -320,6 +324,7 @@
                 .filter(wifi => {
                     return searchQuery ? (
                         wifi.wifiName.toLowerCase().includes(searchQuery) ||
+                        (wifi.sumberInternet && wifi.sumberInternet.toLowerCase().includes(searchQuery)) ||
                         wifi.location.toLowerCase().includes(searchQuery) ||
                         wifi.ipAddress.toLowerCase().includes(searchQuery) ||
                         wifi.area.toLowerCase().includes(searchQuery)
@@ -346,12 +351,7 @@
                 const isSorted = wifiSort.key === key;
                 const ascActive = isSorted && wifiSort.direction === 'asc';
                 const descActive = isSorted && wifiSort.direction === 'desc';
-                return `
-                    <span class="inline-flex flex-col ml-2">
-                        <svg class="w-3 h-3 sort-icon ${ascActive ? 'active' : ''}" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 3.293a1 1 0 00-1.414 0l-6 6a1 1 0 001.414 1.414L10 5.414l5.293 5.293a1 1 0 001.414-1.414l-6-6z"></path></svg>
-                        <svg class="w-3 h-3 sort-icon ${descActive ? 'active' : ''}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.293 16.707a1 1 0 001.414 0l6-6a1 1 0 00-1.414-1.414L10 14.586 4.707 9.293a1 1 0 00-1.414 1.414l6 6z"></path></svg>
-                    </span>
-                `;
+                return `<span class="inline-flex flex-col ml-2"><svg class="w-3 h-3 sort-icon ${ascActive ? 'active' : ''}" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 3.293a1 1 0 00-1.414 0l-6 6a1 1 0 001.414 1.414L10 5.414l5.293 5.293a1 1 0 001.414-1.414l-6-6z"></path></svg><svg class="w-3 h-3 sort-icon ${descActive ? 'active' : ''}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.293 16.707a1 1 0 001.414 0l6-6a1 1 0 00-1.414-1.414L10 14.586 4.707 9.293a1 1 0 00-1.414 1.414l6 6z"></path></svg></span>`;
             };
 
             table.innerHTML = `
@@ -359,6 +359,7 @@
                     <tr>
                         <th scope="col" class="px-4 py-3"><div data-action="sort-wifi" data-sort-key="wifiName" class="flex items-center sortable-header">Nama WiFi ${createSortIcon('wifiName')}</div></th>
                         <th scope="col" class="px-4 py-3">Sandi</th>
+                        <th scope="col" class="px-4 py-3"><div data-action="sort-wifi" data-sort-key="sumberInternet" class="flex items-center sortable-header">Sumber Internet ${createSortIcon('sumberInternet')}</div></th>
                         <th scope="col" class="px-4 py-3"><div data-action="sort-wifi" data-sort-key="area" class="flex items-center sortable-header">Area ${createSortIcon('area')}</div></th>
                         <th scope="col" class="px-4 py-3"><div data-action="sort-wifi" data-sort-key="location" class="flex items-center sortable-header">Lokasi ${createSortIcon('location')}</div></th>
                         <th scope="col" class="px-4 py-3"><div data-action="sort-wifi" data-sort-key="ipAddress" class="flex items-center sortable-header">Alamat IP ${createSortIcon('ipAddress')}</div></th>
@@ -376,6 +377,7 @@
                 tr.innerHTML = `
                     <td class="px-4 py-3 font-medium text-slate-100 whitespace-nowrap">${escapeHtml(wifi.wifiName)}</td>
                     <td class="px-4 py-3"><div class="flex items-center gap-2"><span class="password-text" data-type="password">••••••••</span><button data-action="toggle-password" class="text-slate-400 hover:text-white"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg></button></div></td>
+                    <td class="px-4 py-3">${escapeHtml(wifi.sumberInternet)}</td>
                     <td class="px-4 py-3">${escapeHtml(wifi.area)}</td>
                     <td class="px-4 py-3">${escapeHtml(wifi.location)}</td>
                     <td class="px-4 py-3">${escapeHtml(wifi.ipAddress)}</td>
@@ -427,11 +429,59 @@
             const wifiIdInput = isEdit ? `<input type="hidden" name="id" value="${wifi.id}">` : '';
             const inputClasses = "w-full px-4 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-slate-700 text-slate-100";
             const area = wifi.area || 'Ikhwan';
-            const modalContent = `<form id="wifi-form" class="space-y-4">${wifiIdInput}<h3 class="text-xl font-bold mb-2 text-slate-100">${title}</h3><div><label class="block text-sm font-medium text-slate-300 mb-1">Nama WiFi</label><input type="text" name="wifiName" placeholder="e.g., WiFi_Lantai_1" class="${inputClasses}" value="${escapeHtml(wifi.wifiName || '')}" required></div><div><label class="block text-sm font-medium text-slate-300 mb-1">Sandi</label><input type="text" name="password" placeholder="Sandi WiFi" class="${inputClasses}" value="${escapeHtml(wifi.password || '')}" required></div><div><label class="block text-sm font-medium text-slate-300 mb-1">Alamat IP</label><input type="text" name="ipAddress" placeholder="e.g., 192.168.1.1" class="${inputClasses}" value="${escapeHtml(wifi.ipAddress || '')}" required></div><div><label class="block text-sm font-medium text-slate-300 mb-1">Lokasi</label><input type="text" name="location" placeholder="e.g., Sebelah Ruang Rapat" class="${inputClasses}" value="${escapeHtml(wifi.location || '')}" required></div><div><label class="block text-sm font-medium text-slate-300 mb-1">Area</label><div class="flex gap-4 mt-2"><label class="flex items-center gap-2 text-slate-200"><input type="radio" name="area" value="Ikhwan" class="w-4 h-4" ${area === 'Ikhwan' ? 'checked' : ''}> Ikhwan</label><label class="flex items-center gap-2 text-slate-200"><input type="radio" name="area" value="Akhwat" class="w-4 h-4" ${area === 'Akhwat' ? 'checked' : ''}> Akhwat</label></div></div><div class="mt-6 flex justify-end gap-3"><button type="button" data-action="close-modal" class="px-4 py-2 bg-slate-600 text-slate-100 rounded-lg hover:bg-slate-500 transition-colors">Batal</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">${buttonText}</button></div></form>`;
+
+            let sourceOptions = state.internetSources.map(source => 
+                `<option value="${escapeHtml(source.name)}" ${wifi.sumberInternet === source.name ? 'selected' : ''}>${escapeHtml(source.name)}</option>`
+            ).join('');
+            if (state.internetSources.length === 0) {
+                sourceOptions = `<option value="" disabled>Harap tambahkan sumber internet terlebih dahulu</option>`;
+            }
+
+            const modalContent = `<form id="wifi-form" class="space-y-4">${wifiIdInput}<h3 class="text-xl font-bold mb-2 text-slate-100">${title}</h3><div><label class="block text-sm font-medium text-slate-300 mb-1">Nama WiFi</label><input type="text" name="wifiName" placeholder="e.g., WiFi_Lantai_1" class="${inputClasses}" value="${escapeHtml(wifi.wifiName || '')}" required></div><div><label class="block text-sm font-medium text-slate-300 mb-1">Sandi</label><input type="text" name="password" placeholder="Sandi WiFi" class="${inputClasses}" value="${escapeHtml(wifi.password || '')}" required></div><div><label class="block text-sm font-medium text-slate-300 mb-1">Sumber Internet</label><select name="sumberInternet" class="${inputClasses}" required>${sourceOptions}</select></div><div><label class="block text-sm font-medium text-slate-300 mb-1">Alamat IP</label><input type="text" name="ipAddress" placeholder="e.g., 192.168.1.1" class="${inputClasses}" value="${escapeHtml(wifi.ipAddress || '')}" required></div><div><label class="block text-sm font-medium text-slate-300 mb-1">Lokasi</label><input type="text" name="location" placeholder="e.g., Sebelah Ruang Rapat" class="${inputClasses}" value="${escapeHtml(wifi.location || '')}" required></div><div><label class="block text-sm font-medium text-slate-300 mb-1">Area</label><div class="flex gap-4 mt-2"><label class="flex items-center gap-2 text-slate-200"><input type="radio" name="area" value="Ikhwan" class="w-4 h-4" ${area === 'Ikhwan' ? 'checked' : ''}> Ikhwan</label><label class="flex items-center gap-2 text-slate-200"><input type="radio" name="area" value="Akhwat" class="w-4 h-4" ${area === 'Akhwat' ? 'checked' : ''}> Akhwat</label></div></div><div class="mt-6 flex justify-end gap-3"><button type="button" data-action="close-modal" class="px-4 py-2 bg-slate-600 text-slate-100 rounded-lg hover:bg-slate-500 transition-colors">Batal</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors" ${state.internetSources.length === 0 ? 'disabled' : ''}>${buttonText}</button></div></form>`;
             openModal(modalContent);
             document.getElementById('wifi-form').addEventListener('submit', (e) => {
                 e.preventDefault();
                 handleWifiFormSubmit(e.target);
+            });
+        }
+
+        function showManageSourcesModal() {
+            const sourcesListHTML = state.internetSources.map(source => `
+                <li class="flex justify-between items-center p-2 bg-slate-700 rounded-md">
+                    <span>${escapeHtml(source.name)}</span>
+                    <button data-action="delete-source" data-source-id="${source.id}" class="text-slate-400 hover:text-red-500 p-1 rounded-full">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </li>
+            `).join('');
+
+            const modalContent = `
+                <div class="space-y-4">
+                    <h3 class="text-xl font-bold text-slate-100">Kelola Sumber Internet</h3>
+                    <div class="max-h-60 overflow-y-auto pr-2">
+                        <ul class="space-y-2">${sourcesListHTML || '<p class="text-slate-400 text-center">Belum ada sumber internet.</p>'}</ul>
+                    </div>
+                    <hr class="border-slate-600">
+                    <div>
+                        <h4 class="text-lg font-semibold text-slate-200 mb-2">Tambah Sumber Baru</h4>
+                        <form id="add-source-form" class="flex gap-2">
+                            <input type="text" name="sourceName" placeholder="Nama Sumber (e.g., IndiHome)" class="w-full px-4 py-2 border border-slate-600 rounded-lg bg-slate-700 text-slate-100" required>
+                            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Tambah</button>
+                        </form>
+                    </div>
+                     <div class="mt-6 flex justify-end gap-3">
+                        <button type="button" data-action="close-modal" class="px-4 py-2 bg-slate-600 text-slate-100 rounded-lg hover:bg-slate-500 transition-colors">Tutup</button>
+                    </div>
+                </div>
+            `;
+            openModal(modalContent);
+
+            document.getElementById('add-source-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const form = e.target;
+                const sourceName = form.elements.sourceName.value;
+                handleAddSource(sourceName);
+                form.reset();
             });
         }
 
@@ -441,14 +491,21 @@
             openModal(content);
         }
         
+        // ### FIX: Refactored toast logic for reliability ###
+        function hideToast() {
+            if (state.toastTimeout) {
+                clearTimeout(state.toastTimeout);
+                state.toastTimeout = null;
+            }
+            DOMElements.toast.classList.add('translate-y-20', 'opacity-0');
+        }
+
         function showToast(message) {
-            if (state.toastTimeout) clearTimeout(state.toastTimeout);
+            clearTimeout(state.toastTimeout);
             DOMElements.toastMessage.textContent = message;
             DOMElements.toast.classList.remove('translate-y-20', 'opacity-0');
             DOMElements.toast.classList.add('translate-y-0', 'opacity-100');
-            state.toastTimeout = setTimeout(() => {
-                DOMElements.toast.classList.add('translate-y-20', 'opacity-0');
-            }, 4000);
+            state.toastTimeout = setTimeout(hideToast, 4000);
         }
         
         // --- Firebase Functions ---
@@ -485,11 +542,18 @@
             const data = Object.fromEntries(formData.entries());
             const wifiId = data.id;
             const isEdit = !!wifiId;
-            if (!data.wifiName?.trim() || !data.password?.trim() || !data.ipAddress?.trim() || !data.location?.trim()) {
+            if (!data.wifiName?.trim() || !data.password?.trim() || !data.sumberInternet?.trim() || !data.ipAddress?.trim() || !data.location?.trim()) {
                 showToast('Semua field wajib diisi!');
                 return;
             }
-            const wifiData = { wifiName: data.wifiName, password: data.password, ipAddress: data.ipAddress, location: data.location, area: data.area };
+            const wifiData = { 
+                wifiName: data.wifiName, 
+                password: data.password, 
+                sumberInternet: data.sumberInternet,
+                ipAddress: data.ipAddress, 
+                location: data.location, 
+                area: data.area 
+            };
             try {
                 if (isEdit) {
                     await updateDoc(doc(db, 'wifi_credentials', wifiId), wifiData);
@@ -503,6 +567,30 @@
             } catch (error) {
                 console.error("Error saving wifi data: ", error);
                 showToast('Gagal menyimpan data WiFi.');
+            }
+        }
+
+        async function handleAddSource(sourceName) {
+            if (!sourceName || !sourceName.trim()) {
+                showToast('Nama sumber tidak boleh kosong.');
+                return;
+            }
+            try {
+                await addDoc(collection(db, 'internet_sources'), { name: sourceName.trim() });
+                showToast('Sumber internet berhasil ditambahkan.');
+            } catch (error) {
+                console.error("Error adding source: ", error);
+                showToast('Gagal menambahkan sumber internet.');
+            }
+        }
+
+        async function handleDeleteSource(sourceId) {
+            try {
+                await deleteDoc(doc(db, 'internet_sources', sourceId));
+                showToast('Sumber internet telah dihapus.');
+            } catch (error) {
+                console.error("Error deleting source: ", error);
+                showToast('Gagal menghapus sumber internet.');
             }
         }
 
@@ -554,6 +642,20 @@
                 if (state.currentView === 'wifi') showToast("Gagal memuat data WiFi. Periksa Security Rules.");
             });
         }
+
+        function listenForInternetSources() {
+            if (state.unsubscribeSources) state.unsubscribeSources();
+            const q = query(collection(db, 'internet_sources'));
+            state.unsubscribeSources = onSnapshot(q, (querySnapshot) => {
+                state.internetSources = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name));
+                if (document.getElementById('add-source-form')) {
+                    showManageSourcesModal();
+                }
+            }, (error) => {
+                console.error("Error listening to internet sources: ", error);
+                showToast("Gagal memuat sumber internet.");
+            });
+        }
         
         // --- Global Event Delegation ---
         function handleAppClick(e) {
@@ -603,6 +705,14 @@
                 case 'open-add-wifi-modal':
                     showWifiFormModal(false);
                     break;
+                case 'open-manage-sources-modal':
+                    showManageSourcesModal();
+                    break;
+                case 'delete-source': {
+                    const sourceId = actionTarget.dataset.sourceId;
+                    handleDeleteSource(sourceId);
+                    break;
+                }
                 case 'filter':
                     state.currentFilter = actionTarget.dataset.filter;
                     DOMElements.filterContainer.querySelector('.active').classList.remove('active');
@@ -645,7 +755,7 @@
                     closeModal();
                     break;
                 case 'close-toast':
-                    DOMElements.toast.classList.add('translate-y-20', 'opacity-0');
+                    hideToast();
                     break;
                 case 'toggle-password': {
                     const row = actionTarget.closest('tr');
@@ -663,7 +773,6 @@
                 }
                 case 'reset-wifi-filters': {
                     state.wifiSearchQuery = '';
-                    // ### MODIFIED: Reset only search query ###
                     document.getElementById('wifi-search').value = '';
                     renderWifiList();
                     break;
@@ -684,8 +793,7 @@
 
         // --- App Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
-            DOMElements.appContainer.addEventListener('click', handleAppClick);
-            DOMElements.modalTemplate.addEventListener('click', handleAppClick);
+            document.body.addEventListener('click', handleAppClick);
             
             DOMElements.wifiSearchInput.addEventListener('input', (e) => {
                 state.wifiSearchQuery = e.target.value;
@@ -694,6 +802,7 @@
             
             listenForEvents();
             listenForWifiData();
+            listenForInternetSources();
 
             renderCalendar();
             renderEventList();
