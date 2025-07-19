@@ -374,7 +374,6 @@
                 const tr = document.createElement('tr');
                 tr.className = 'border-b border-slate-700 hover:bg-slate-700/30';
                 tr.dataset.wifiId = wifi.id;
-                // ### NEW: Added share button ###
                 tr.innerHTML = `
                     <td class="px-4 py-3 font-medium text-slate-100 whitespace-nowrap">${escapeHtml(wifi.wifiName)}</td>
                     <td class="px-4 py-3"><div class="flex items-center gap-2"><span class="password-text" data-type="password">••••••••</span><button data-action="toggle-password" class="text-slate-400 hover:text-white"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg></button></div></td>
@@ -624,6 +623,7 @@
             const q = query(collection(db, 'it_tasks'));
             state.unsubscribeEvents = onSnapshot(q, (querySnapshot) => {
                 state.events = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                checkForTodayTasksAndNotify();
                 if (state.currentView === 'calendar') {
                     renderCalendar();
                     renderEventList();
@@ -660,6 +660,52 @@
             });
         }
         
+        // ### NEW: Notification Functions ###
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                console.log("Browser ini tidak mendukung notifikasi desktop.");
+                return;
+            }
+            if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        new Notification('Notifikasi Diaktifkan!', {
+                            body: 'Anda akan menerima pengingat untuk tugas harian.',
+                            icon: 'https://placehold.co/180x180/0f172a/ffffff?text=IT'
+                        });
+                    }
+                });
+            }
+        }
+
+        function checkForTodayTasksAndNotify() {
+            if (Notification.permission !== 'granted') return;
+
+            const todayString = toYYYYMMDD(new Date());
+            const lastNotificationDate = localStorage.getItem('lastNotificationDate');
+
+            if (lastNotificationDate === todayString) return;
+
+            const todayTasks = state.events.filter(event => event.date === todayString && !event.status);
+
+            if (todayTasks.length > 0) {
+                const title = `Anda memiliki ${todayTasks.length} tugas hari ini!`;
+                const taskTitles = todayTasks.map(task => task.title).join(', ');
+                const body = `Tugas: ${taskTitles}. Buka aplikasi untuk detailnya.`;
+
+                try {
+                    new Notification(title, {
+                        body: body,
+                        icon: 'https://placehold.co/180x180/0f172a/ffffff?text=IT',
+                        tag: 'daily-task-reminder'
+                    });
+                    localStorage.setItem('lastNotificationDate', todayString);
+                } catch (err) {
+                    console.error('Gagal menampilkan notifikasi:', err);
+                }
+            }
+        }
+
         // --- Global Event Delegation ---
         function handleAppClick(e) {
             const target = e.target;
@@ -791,7 +837,6 @@
                     renderWifiList();
                     break;
                 }
-                // ### NEW: Action to copy WiFi details to clipboard ###
                 case 'share-wifi': {
                     const wifiId = actionTarget.closest('[data-wifi-id]').dataset.wifiId;
                     const wifiToShare = state.wifiList.find(w => w.id === wifiId);
@@ -824,6 +869,10 @@
                 renderWifiList();
             });
             
+            // ### FIX: Dedicated event listener for toast close button ###
+            DOMElements.toast.querySelector('[data-action="close-toast"]').addEventListener('click', hideToast);
+
+            requestNotificationPermission();
             listenForEvents();
             listenForWifiData();
             listenForInternetSources();
